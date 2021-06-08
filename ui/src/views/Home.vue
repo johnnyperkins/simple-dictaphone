@@ -1,7 +1,9 @@
 <template>
   <div>
-    <button @click="startRecording">Record</button>
-    <button @click="onStopClick">Stop</button>
+    <record-btn
+      @start="startRecording"
+      @stop="onStopClick"
+    />
 
     <div class="recording-list">
       <audio-player
@@ -15,6 +17,7 @@
 
 <script>
 import AudioPlayer from '@/components/AudioPlayer'
+import RecordBtn from '@/components/RecordBtn.vue'
 
 export default {
   name: 'Home',
@@ -70,7 +73,8 @@ export default {
   },
 
   components: {
-    AudioPlayer
+    AudioPlayer,
+    RecordBtn
   }
 }
 </script>
@@ -80,6 +84,7 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-top: 24px;
 
   > audio {
     width: 100%;
