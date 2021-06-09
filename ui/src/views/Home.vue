@@ -80,9 +80,14 @@ export default {
       this.audioURLs.push(audioURL)
 
       // upload
+      const clipName = prompt('Enter a name for your recording', 'Super important!') || this.getRandomName()
       const buffer = await blob.arrayBuffer()
-      const resp = await uploadRecording(buffer, 'rec-' + Math.random())
+      const resp = await uploadRecording(buffer, clipName)
       console.log('upload resp', resp)
+    },
+
+    getRandomName () {
+      return 'rec-' + Math.floor(Math.random() * 100000000000)
     },
 
     onStopClick () {
