@@ -4,6 +4,7 @@
       btn: true,
       pressed: isPressed
     }"
+    :style="isPressed ? 'cursor: progress' : ''"
     @mousedown="setPressed(true)"
     @mouseup="setPressed(false)"
     @mouseleave="setPressed(false)"
