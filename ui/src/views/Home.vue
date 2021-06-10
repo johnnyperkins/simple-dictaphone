@@ -1,25 +1,21 @@
 <template>
-  <div>
+  <div class="wrapper">
     <record-btn
       @start="startRecording"
       @stop="onStopClick"
     />
 
-    <div class="recording-list">
-      <audio-player
-        v-for="(audioURL, i) in audioURLs"
-        :key="i"
-        :url="audioURL"
-      />
+    <div class="recordings">
+      <div
+        v-for="(audioURL, recordingName) in recordings"
+        :key="recordingName"
+        :class="{ noAudio: !audioURL }"
+        @click="onRecordingNameClick(recordingName)"
+      >
+        <label>{{ recordingName }}</label>
+        <audio-player v-if="audioURL" :url="audioURL" />
+      </div>
     </div>
-
-    <p
-      v-for="recordingName in recordingsList"
-      :key="recordingName"
-      @click="onRecordingNameClick(recordingName)"
-    >
-      {{ recordingName }}
-    </p>
   </div>
 </template>
 
@@ -37,13 +33,18 @@ export default {
       audioCtx: undefined,
       chunks: [],
       audioURLs: [],
-      recordingsList: []
+      recordingsList: [],
+      recordings: {}
     }
   },
 
   async mounted () {
     const resp = await getRecordingsList()
     this.recordingsList = JSON.parse(resp)
+
+    this.recordingsList.forEach(name => {
+      this.recordings[name] = null
+    })
 
     if (navigator.mediaDevices.getUserMedia) {
       console.log('getUserMedia supported')
@@ -80,10 +81,10 @@ export default {
       this.audioURLs.push(audioURL)
 
       // upload
-      const clipName = prompt('Enter a name for your recording', 'Super important!') || this.getRandomName()
+      const name = prompt('Enter a name for your recording', 'Super important!') || this.getRandomName()
       const buffer = await blob.arrayBuffer()
-      const resp = await uploadRecording(buffer, clipName)
-      console.log('upload resp', resp)
+      await uploadRecording(buffer, name)
+      this.recordings[name] = audioURL
     },
 
     getRandomName () {
@@ -95,9 +96,11 @@ export default {
     },
 
     async onRecordingNameClick (recordingName = '') {
-      const recordingBlob = await downloadRecording(recordingName)
-      const audioURL = window.URL.createObjectURL(recordingBlob)
-      this.audioURLs.push(audioURL)
+      if (!this.recordings[recordingName]) {
+        const recordingBlob = await downloadRecording(recordingName)
+        const audioURL = window.URL.createObjectURL(recordingBlob)
+        this.recordings[recordingName] = audioURL
+      }
     }
   },
 
@@ -109,16 +112,42 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.recording-list {
+.wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+.recordings {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 528px;
   margin-top: 24px;
 
-  > audio {
+  & > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-wrap: nowrap;
     width: 100%;
-    max-width: 700px;
-    margin-bottom: 16px;
+    margin-top: 16px;
+    padding: 12px;
+    box-shadow: 3px 3px 8px #aaa;
+
+    &.noAudio:hover {
+      box-shadow: 3px 3px 10px #888;
+      cursor: pointer;
+    }
+
+    > label {
+      font-size: 18px;
+    }
+
+    > audio {
+      width: 100%;
+      margin-top: 4px;
+    }
   }
 }
 </style>
