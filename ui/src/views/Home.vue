@@ -1,5 +1,7 @@
 <template>
   <div class="wrapper">
+    <canvas ref="canvas" class="visualization"></canvas>
+
     <record-btn
       @start="startRecording"
       @stop="onStopClick"
@@ -29,20 +31,19 @@ export default {
 
   data () {
     return {
+      recordings: {},
       mediaRecorder: undefined,
-      audioCtx: undefined,
       chunks: [],
-      audioURLs: [],
-      recordingsList: [],
-      recordings: {}
+      audioCtx: undefined,
+      canvasCtx: undefined
     }
   },
 
   async mounted () {
     const resp = await getRecordingsList()
-    this.recordingsList = JSON.parse(resp)
+    const recordingsList = JSON.parse(resp)
 
-    this.recordingsList.forEach(name => {
+    recordingsList.forEach(name => {
       this.recordings[name] = null
     })
 
@@ -58,11 +59,15 @@ export default {
     } else {
       alert('getUserMedia not supported on your browser!')
     }
+
+    this.canvasCtx = this.$refs.canvas.getContext('2d')
   },
 
   methods: {
     setupMediaRecorder (stream) {
       this.mediaRecorder = new MediaRecorder(stream)
+
+      this.visualize(stream)
 
       this.mediaRecorder.onstop = this.stopRecording
 
@@ -78,7 +83,6 @@ export default {
       const blob = new Blob(this.chunks, { type: 'audio/ogg; codecs=opus' })
       this.chunks = []
       const audioURL = window.URL.createObjectURL(blob)
-      this.audioURLs.push(audioURL)
 
       // upload
       const name = prompt('Enter a name for your recording', 'Super important!') || this.getRandomName()
@@ -89,6 +93,57 @@ export default {
 
     getRandomName () {
       return 'rec-' + Math.floor(Math.random() * 100000000000)
+    },
+
+    visualize (stream) {
+      if (!this.audioCtx) {
+        this.audioCtx = new AudioContext()
+      }
+
+      const source = this.audioCtx.createMediaStreamSource(stream)
+      const analyser = this.audioCtx.createAnalyser()
+      analyser.fftSize = 2048
+      const bufferLength = analyser.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+      source.connect(analyser)
+
+      const draw = () => {
+        const WIDTH = this.$refs.canvas.width
+        const HEIGHT = this.$refs.canvas.height
+
+        requestAnimationFrame(draw)
+
+        analyser.getByteTimeDomainData(dataArray)
+
+        this.canvasCtx.fillStyle = 'rgb(256, 256, 256)'
+        this.canvasCtx.fillRect(0, 0, WIDTH, HEIGHT)
+
+        this.canvasCtx.lineWidth = 2
+        this.canvasCtx.strokeStyle = 'rgb(0, 0, 0)'
+
+        this.canvasCtx.beginPath()
+
+        const sliceWidth = WIDTH * 1.0 / bufferLength
+        let x = 0
+
+        for (let i = 0; i < bufferLength; i++) {
+          const v = dataArray[i] / 128.0
+          const y = v * HEIGHT / 2
+
+          if (i === 0) {
+            this.canvasCtx.moveTo(x, y)
+          } else {
+            this.canvasCtx.lineTo(x, y)
+          }
+
+          x += sliceWidth
+        }
+
+        this.canvasCtx.lineTo(this.$refs.canvas.width, this.$refs.canvas.height / 2)
+        this.canvasCtx.stroke()
+      }
+
+      draw()
     },
 
     onStopClick () {
@@ -117,6 +172,7 @@ export default {
   flex-direction: column;
   align-items: center;
 }
+
 .recordings {
   display: flex;
   flex-direction: column;
@@ -149,5 +205,13 @@ export default {
       margin-top: 4px;
     }
   }
+}
+
+.visualization {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  height: 120px;
+  z-index: -1;
 }
 </style>
