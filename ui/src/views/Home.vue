@@ -4,7 +4,7 @@
 
     <record-btn
       @start="startRecording"
-      @stop="onStopClick"
+      @stop="stopRecording"
     />
 
     <div class="recordings">
@@ -12,7 +12,7 @@
         v-for="(audioURL, recordingName) in recordings"
         :key="recordingName"
         :class="{ noAudio: !audioURL }"
-        @click="onRecordingNameClick(recordingName)"
+        @click="onRecordingClick(recordingName)"
       >
         <label>{{ recordingName }}</label>
         <audio-player v-if="audioURL" :url="audioURL" />
@@ -48,12 +48,8 @@ export default {
     })
 
     if (navigator.mediaDevices.getUserMedia) {
-      console.log('getUserMedia supported')
-
       const constraints = { audio: true }
-
       const onError = err => console.error(err)
-
       navigator.mediaDevices.getUserMedia(constraints)
         .then(this.setupMediaRecorder, onError)
     } else {
@@ -66,25 +62,28 @@ export default {
   methods: {
     setupMediaRecorder (stream) {
       this.mediaRecorder = new MediaRecorder(stream)
-
-      this.visualize(stream)
-
-      this.mediaRecorder.onstop = this.stopRecording
-
+      this.mediaRecorder.onstop = this.onRecordingStop
       this.mediaRecorder.ondataavailable = e =>
         this.chunks.push(e.data)
+
+      this.visualize(stream)
     },
 
     startRecording () {
       this.mediaRecorder.start()
     },
 
-    async stopRecording () {
+    stopRecording () {
+      this.mediaRecorder.stop()
+    },
+
+    async onRecordingStop () {
+      // Generate ogg blob from audio stream
       const blob = new Blob(this.chunks, { type: 'audio/ogg; codecs=opus' })
       this.chunks = []
       const audioURL = window.URL.createObjectURL(blob)
 
-      // upload
+      // Upload recording
       const name = prompt('Enter a name for your recording', 'Super important!') || this.getRandomName()
       const buffer = await blob.arrayBuffer()
       await uploadRecording(buffer, name)
@@ -146,11 +145,7 @@ export default {
       draw()
     },
 
-    onStopClick () {
-      this.mediaRecorder.stop()
-    },
-
-    async onRecordingNameClick (recordingName = '') {
+    async onRecordingClick (recordingName = '') {
       if (!this.recordings[recordingName]) {
         const recordingBlob = await downloadRecording(recordingName)
         const audioURL = window.URL.createObjectURL(recordingBlob)
