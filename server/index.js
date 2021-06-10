@@ -1,15 +1,13 @@
 const express = require('express')
 const cors = require('cors')
+const Minio = require('minio')
 const app = express()
 const port = 3000
+const bucketName = 'recordings'
 
 app.use(cors())
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json())
-
-const Minio = require('minio')
-
-const bucketName = 'recordings'
 
 const minioClient = new Minio.Client({
   endPoint: 'play.min.io',
@@ -20,12 +18,12 @@ const minioClient = new Minio.Client({
 })
 
 minioClient.bucketExists(bucketName, function(err, exists) {
-  if (err) return console.log(err)
+  if (err) throw err
 
   if (!exists) {
     minioClient.makeBucket(bucketName, 'us-east-1', function(err) {
-      if (err) return console.log('Error creating bucket with object lock.', err)
-      console.log('Bucket created successfully in "us-east-1" and enabled object lock')
+      if (err) throw err
+      console.log('Bucket created successfully')
     })
   }
 })
